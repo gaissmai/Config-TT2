@@ -76,29 +76,26 @@ sub process {
     # load and parse the template
     $template = $ctx->template($template);
 
-    # preset variable stash
-    my $stash = $ctx->stash;
-
     # delete predefined global slot
-    delete $stash->{global};
+    delete $ctx->stash->{global};
 
-    $stash->update($vars) if $vars;
+    $ctx->stash->update($vars) if $vars;
 
     # process template
     $template->process($ctx);
 
     # copy Template::Stash and ...
-    my $result_stash = Template::Config->stash();
-    delete $result_stash->{global};
-    $result_stash->update($stash);
+    my $stash = Template::Config->stash();
+    delete $stash->{global};
+    $stash->update($ctx->stash);
 
     # ... delete all private keys and coderefs
-    foreach my $key ( keys %$result_stash ) {
-        delete $result_stash->{$key} if $key =~ m/^[._]/;
-        delete $result_stash->{$key} if ref $result_stash->{$key} eq 'CODE';
+    foreach my $key ( keys %$stash ) {
+        delete $stash->{$key} if $key =~ m/^[._]/;
+        delete $stash->{$key} if ref $stash->{$key} eq 'CODE';
     }
 
-    return $result_stash;
+    return $stash;
 }
 
 =head1 AUTHOR
