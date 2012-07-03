@@ -45,10 +45,12 @@ sub new {
     my $defaults = {
         STRICT     => 1,    # croak on undefined vars
         CACHE_SIZE => 0,    # don't cache the config file
-        ABSOLUTE   => 1,    # don't cache the config file
+        AUTO_RESET => 1,    # reset BLOCKS after processing
+        ABSOLUTE   => 1,    # absolute filenames allowed
+        RELATIVE   => 1,    # relative filenames allowed
     };
 
-    my $ctx = Template::Config->context(%$defaults, %$params);
+    my $ctx = Template::Config->context( %$defaults, %$params );
 
     # setter
     $self->context($ctx);
@@ -63,7 +65,7 @@ setter/getter for Template::Context object
 =cut
 
 sub context {
-    my ($self, $ctx) = @_;
+    my ( $self, $ctx ) = @_;
     $self->{ctx} = $ctx if defined $ctx;
     return $self->{ctx};
 }
@@ -83,7 +85,7 @@ sub process {
     delete $ctx->stash->{global};
 
     # process template
-    $ctx->process($template, $vars);
+    my $output = $ctx->process( $template, $vars );
 
     # HACK
     # delete component slot
@@ -97,7 +99,7 @@ sub process {
     # delete predefined global slot and component slot
     delete $stash->{global};
 
-    $stash->update($ctx->stash);
+    $stash->update( $ctx->stash );
 
     # ... delete all private keys, coderefs and other internals
     foreach my $key ( keys %$stash ) {
@@ -105,7 +107,7 @@ sub process {
         delete $stash->{$key} if ref $stash->{$key} eq 'CODE';
     }
 
-    return $stash;
+    return wantarray ? ( $stash, $output ) : $stash;
 }
 
 =head1 AUTHOR

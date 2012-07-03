@@ -16,7 +16,7 @@ isa_ok( $template, 'Config::TT' );
 $cfg   = '[% foo = 1 %]';
 $stash = $template->process( \$cfg );
 isa_ok( $stash, 'Template::Stash' );
-diag explain $stash;
+#diag explain $stash;
 is_deeply( $stash, { foo => 1 }, 'SCALAR' );
 
 $cfg   = "[% foo = [1 2 3 4] %]";
