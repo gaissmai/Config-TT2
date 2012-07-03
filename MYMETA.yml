@@ -18,7 +18,7 @@ provides:
     file: lib/Config/TT.pm
     version: 0.01
 requires:
-  Template: 0
+  Template: 2.24
 resources:
   license: http://dev.perl.org/licenses/
 version: 0.01

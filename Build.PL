@@ -12,7 +12,7 @@ my $builder = Module::Build->new(
         'Test::More' => 0,
     },
     requires => {
-        'Template' => 0,
+        'Template' => '2.24',
     },
     add_to_cleanup      => [ 'Config-TT-*' ],
     create_makefile_pl => 'traditional',

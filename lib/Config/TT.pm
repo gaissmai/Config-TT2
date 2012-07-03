@@ -3,6 +3,7 @@ package Config::TT;
 use strict;
 use warnings;
 use Template::Config;
+use Scalar::Util qw(blessed);
 
 =head1 NAME
 
@@ -40,19 +41,24 @@ sub new {
     # build the Template::Context object
     my $params = defined( $_[0] ) && ref( $_[0] ) eq 'HASH' ? shift : {@_};
 
-    # DEFAULTS: croak on undefined vars and don't cache the config file
-    $params->{STRICT}     = 1 unless exists $params->{STRICT};
-    $params->{CACHE_SIZE} = 0 unless exists $params->{CACHE_SIZE};
+    # DEFAULTS:
+    my $defaults = {
+        STRICT     => 1,    # croak on undefined vars
+        CACHE_SIZE => 0,    # don't cache the config file
+        ABSOLUTE   => 1,    # don't cache the config file
+    };
 
-    my $ctx = Template::Config->context($params);
+    my $ctx = Template::Config->context(%$defaults, %$params);
 
+    # setter
     $self->context($ctx);
+
     return $self;
 }
 
 =head2 context
 
-setter/accessor for Template::Context object
+setter/getter for Template::Context object
 
 =cut
 
@@ -71,25 +77,29 @@ sub process {
     my ( $template, $vars ) = @_;
 
     my $ctx = $self->{ctx};
-    $ctx->reset;
 
-    # load and parse the template
-    $template = $ctx->template($template);
-
+    # HACK
     # delete predefined global slot
     delete $ctx->stash->{global};
 
-    $ctx->stash->update($vars) if $vars;
-
     # process template
-    $template->process($ctx);
+    $ctx->process($template, $vars);
+
+    # HACK
+    # delete component slot
+    delete $ctx->stash->{component} if blessed $ctx->stash->{component};
+    delete $ctx->stash->{component} if not defined $ctx->stash->{component};
 
     # copy Template::Stash and ...
     my $stash = Template::Config->stash();
+
+    # HACK
+    # delete predefined global slot and component slot
     delete $stash->{global};
+
     $stash->update($ctx->stash);
 
-    # ... delete all private keys and coderefs
+    # ... delete all private keys, coderefs and other internals
     foreach my $key ( keys %$stash ) {
         delete $stash->{$key} if $key =~ m/^[._]/;
         delete $stash->{$key} if ref $stash->{$key} eq 'CODE';
