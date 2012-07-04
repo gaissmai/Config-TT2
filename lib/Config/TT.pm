@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Template::Config;
+use Template::Constants;
 use Carp qw(carp);
 
 =head1 NAME
@@ -42,7 +43,19 @@ sub new {
     my $params = defined( $_[0] ) && ref( $_[0] ) eq 'HASH' ? shift : {@_};
 
     # warn about unsupported Template::Service params
-    my @unsupported = qw(PRE_PROCESS PROCESS POST_PROCESS AUTO_RESET ERROR);
+    my @unsupported = qw(
+      NAMESPACE
+      CONSTANTS
+      CONSTANTS_NAMESPACE
+      PRE_PROCESS
+      PROCESS
+      POST_PROCESS
+      AUTO_RESET ERROR
+      SERVICE
+      OUTPUT
+      OUTPUT_PATH
+    );
+
     foreach my $unsupported (@unsupported) {
         carp "Option '$unsupported' not supported\n"
           if exists $params->{$unsupported};
@@ -50,6 +63,9 @@ sub new {
 
     # DEFAULTS
     my $defaults = {
+        PRE_CHOMP  => 1,    # handle ws
+        POST_CHOMP => 1,    # handle ws
+	TRIM       => 1,    # handle ws
         STRICT     => 1,    # croak on undefined vars
         CACHE_SIZE => 0,    # don't cache the config file
         ABSOLUTE   => 1,    # absolute filenames allowed
@@ -65,6 +81,12 @@ sub new {
 
 sub _init {
     my $self = shift;
+
+    # convert any textual DEBUG args into numerical form
+    my $debug = $self->{params}{DEBUG};
+    if ( defined $debug && $debug !~ /^\d+$/) {
+	$self->{params}{DEBUG} = Template::Constants::debug_flags($self, $debug);
+    }
 
     # CONTEXT from caller?
     if ( $self->{params}{CONTEXT} ) {
