@@ -2,8 +2,9 @@ package Config::TT;
 
 use strict;
 use warnings;
+
 use Template::Config;
-use Scalar::Util qw(blessed);
+use Carp qw(carp);
 
 =head1 NAME
 
@@ -36,38 +37,45 @@ Perhaps a little code snippet.
 
 sub new {
     my $class = shift;
-    my $self = bless {}, $class;
 
-    # build the Template::Context object
+    # params as HASH or HASHREF?
     my $params = defined( $_[0] ) && ref( $_[0] ) eq 'HASH' ? shift : {@_};
 
-    # DEFAULTS:
+    # warn about unsupported Template::Service params
+    my @unsupported = qw(PRE_PROCESS PROCESS POST_PROCESS AUTO_RESET ERROR);
+    foreach my $unsupported (@unsupported) {
+        carp "Option '$unsupported' not supported\n"
+          if exists $params->{$unsupported};
+    }
+
+    # DEFAULTS
     my $defaults = {
         STRICT     => 1,    # croak on undefined vars
         CACHE_SIZE => 0,    # don't cache the config file
-        AUTO_RESET => 1,    # reset BLOCKS after processing
         ABSOLUTE   => 1,    # absolute filenames allowed
         RELATIVE   => 1,    # relative filenames allowed
     };
 
-    my $ctx = Template::Config->context( %$defaults, %$params );
+    # override defaults by params
+    my $self = bless { params => { %$defaults, %$params } }, $class;
 
-    # setter
-    $self->context($ctx);
-
+    $self->_init();
     return $self;
 }
 
-=head2 context
+sub _init {
+    my $self = shift;
 
-setter/getter for Template::Context object
+    # CONTEXT from caller?
+    if ( $self->{params}{CONTEXT} ) {
+        $self->{CONTEXT} = $self->{params}{CONTEXT};
+    }
+    # CONTEXT via Template::Config factory
+    else {
+        $self->{CONTEXT} = Template::Config->context( $self->{params} );
+    }
 
-=cut
-
-sub context {
-    my ( $self, $ctx ) = @_;
-    $self->{ctx} = $ctx if defined $ctx;
-    return $self->{ctx};
+    return $self;
 }
 
 =head2 process
@@ -75,39 +83,46 @@ sub context {
 =cut
 
 sub process {
-    my $self = shift;
-    my ( $template, $vars ) = @_;
+    my ( $self, $template, $vars ) = @_;
 
-    my $ctx = $self->{ctx};
+    # reset CONTEXT
+    $self->_init;
+
+    my $ctx = $self->{CONTEXT};
 
     # HACK
-    # delete predefined global slot
+    # delete PUBLIC global slot in context stash before processing
     delete $ctx->stash->{global};
 
-    # process template
-    my $output = $ctx->process( $template, $vars );
+    # update stash with given $vars
+    $ctx->stash->update($vars) if $vars;
+
+    # load Template::Document
+    my $template_doc = $ctx->template($template);
+
+    #  process it
+    my $output = $template_doc->process($ctx);
+
+    # prepare result stash ...
+    my $result_stash = Template::Config->stash();
 
     # HACK
-    # delete component slot
-    delete $ctx->stash->{component} if blessed $ctx->stash->{component};
-    delete $ctx->stash->{component} if not defined $ctx->stash->{component};
+    # delete PUBLIC global slot in context stack before processing
+    delete $result_stash->{global};
 
-    # copy Template::Stash and ...
-    my $stash = Template::Config->stash();
-
-    # HACK
-    # delete predefined global slot and component slot
-    delete $stash->{global};
-
-    $stash->update( $ctx->stash );
+    $result_stash->update( $ctx->stash );
 
     # ... delete all private keys, coderefs and other internals
-    foreach my $key ( keys %$stash ) {
-        delete $stash->{$key} if $key =~ m/^[._]/;
-        delete $stash->{$key} if ref $stash->{$key} eq 'CODE';
+    foreach my $key ( keys %$result_stash ) {
+
+	# delete private keys starting with '.' or '_'
+        delete $result_stash->{$key} if $key =~ m/^[._]/;
+
+	# delete VMethods like inc(), dec(), ... from config stash 
+        delete $result_stash->{$key} if ref $result_stash->{$key} eq 'CODE';
     }
 
-    return wantarray ? ( $stash, $output ) : $stash;
+    return wantarray ? ( $result_stash, $output ) : $result_stash;
 }
 
 =head1 AUTHOR
