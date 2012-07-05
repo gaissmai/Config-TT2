@@ -3,8 +3,7 @@ package Config::TT;
 use strict;
 use warnings;
 
-use Template::Config;
-use Template::Constants;
+use Template;
 use Carp qw(carp);
 
 =head1 NAME
@@ -42,18 +41,20 @@ sub new {
     # params as HASH or HASHREF?
     my $params = defined( $_[0] ) && ref( $_[0] ) eq 'HASH' ? shift : {@_};
 
-    # warn about unsupported Template::Service params
+    #
+    # Warn for unsupported Template and Template::Service params.
+    # Our entry level is Template::Context, see Template::Manual::Internals
+    #
     my @unsupported = qw(
-      NAMESPACE
-      CONSTANTS
-      CONSTANTS_NAMESPACE
       PRE_PROCESS
       PROCESS
       POST_PROCESS
-      AUTO_RESET ERROR
-      SERVICE
+      WRAPPER
+      AUTO_RESET
       OUTPUT
       OUTPUT_PATH
+      ERROR
+      ERRORS
     );
 
     foreach my $unsupported (@unsupported) {
@@ -61,43 +62,26 @@ sub new {
           if exists $params->{$unsupported};
     }
 
-    # DEFAULTS
+    #
+    # DEFAULTS, see Template::Manual::Config
+    #
     my $defaults = {
-        PRE_CHOMP  => 1,    # handle ws
-        POST_CHOMP => 1,    # handle ws
-	TRIM       => 1,    # handle ws
-        STRICT     => 1,    # croak on undefined vars
-        CACHE_SIZE => 0,    # don't cache the config file
-        ABSOLUTE   => 1,    # absolute filenames allowed
-        RELATIVE   => 1,    # relative filenames allowed
+        PRE_CHOMP   => 1,
+        POST_CHOMP  => 1,
+        TRIM        => 1,
+        STRICT      => 1,
+        CACHE_SIZE  => 0,
+        ABSOLUTE    => 1,
+        RELATIVE    => 1,
+        INTERPLOATE => 0,
+        EVAL_PERL   => 0,
+        RAW_PERL    => 0,
+        RECURSION   => 0,
     };
 
     # override defaults by params
     my $self = bless { params => { %$defaults, %$params } }, $class;
-
-    $self->_init();
-    return $self;
-}
-
-sub _init {
-    my $self = shift;
-
-    # convert any textual DEBUG args into numerical form
-    my $debug = $self->{params}{DEBUG};
-    if ( defined $debug && $debug !~ /^\d+$/) {
-	$self->{params}{DEBUG} = Template::Constants::debug_flags($self, $debug);
-    }
-
-    # CONTEXT from caller?
-    if ( $self->{params}{CONTEXT} ) {
-        $self->{CONTEXT} = $self->{params}{CONTEXT};
-    }
-    # CONTEXT via Template::Config factory
-    else {
-        $self->{CONTEXT} = Template::Config->context( $self->{params} );
-    }
-
-    return $self;
+    return $self->_build;
 }
 
 =head2 process
@@ -107,45 +91,44 @@ sub _init {
 sub process {
     my ( $self, $template, $vars ) = @_;
 
-    # reset CONTEXT
-    $self->_init;
-
     my $ctx = $self->{CONTEXT};
 
-    # HACK
-    # delete PUBLIC global slot in context stash before processing
-    delete $ctx->stash->{global};
+    #
+    # processing template from Template::Context level and NOT
+    # from Template::Service level to get the stash back
+    #
+    my $output = $ctx->process($template, $vars);
 
-    # update stash with given $vars
-    $ctx->stash->update($vars) if $vars;
+    # remove initial stash keys like _STRICT, _DEBUG, ...
+    $self->_purge_stash($ctx->stash);
 
-    # load Template::Document
-    my $template_doc = $ctx->template($template);
-
-    #  process it
-    my $output = $template_doc->process($ctx);
-
-    # prepare result stash ...
-    my $result_stash = Template::Config->stash();
-
-    # HACK
-    # delete PUBLIC global slot in context stack before processing
-    delete $result_stash->{global};
-
-    $result_stash->update( $ctx->stash );
-
-    # ... delete all private keys, coderefs and other internals
-    foreach my $key ( keys %$result_stash ) {
-
-	# delete private keys starting with '.' or '_'
-        delete $result_stash->{$key} if $key =~ m/^[._]/;
-
-	# delete VMethods like inc(), dec(), ... from config stash 
-        delete $result_stash->{$key} if ref $result_stash->{$key} eq 'CODE';
-    }
-
-    return wantarray ? ( $result_stash, $output ) : $result_stash;
+    return wantarray ? ( $ctx->stash, $output ) : $ctx->stash;
 }
+
+sub _build {
+    my $self = shift;
+
+    # our entry level is Template::Context, use Template method chain
+    $self->{CONTEXT} = Template->new( $self->{params} )->service->context;
+
+    return $self;
+}
+
+sub _purge_stash {
+    my ($self, $stash) = @_;
+
+    # vanilla stash for these params, use Template method chain
+    my $vanilla_stash =
+      Template->new( $self->{params} )->service->context->stash;
+
+    # TODO
+    # ... delete all vanilla keys from stash
+
+}
+
+=head1 LIMITATIONS
+
+Due to an design error in TT2 version 2.24 and before you can't use the toplevel variable 'component' in your config files. Maybe this will get fixed in later releases of TT2.
 
 =head1 AUTHOR
 
@@ -156,9 +139,6 @@ Karl Gaissmaier, C<< <gaissmai at cpan.org> >>
 Please report any bugs or feature requests to C<bug-config-tt at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Config-TT>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
-
-
-
 
 =head1 SUPPORT
 
