@@ -18,6 +18,7 @@ provides:
     file: lib/Config/TT.pm
     version: 0.01
 requires:
+  Carp: 0
   Template: 2.24
 resources:
   license: http://dev.perl.org/licenses/

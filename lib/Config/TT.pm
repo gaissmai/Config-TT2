@@ -4,11 +4,12 @@ use strict;
 use warnings;
 
 use Template;
-use Carp qw(carp);
+use Try::Tiny;
+use Carp qw(croak);
 
 =head1 NAME
 
-Config::TT - Config files
+Config::TT - A module for reading Template-Toolkit-style configuration files.
 
 =head1 VERSION
 
@@ -20,14 +21,15 @@ our $VERSION = '0.01';
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
-
-Perhaps a little code snippet.
-
     use Config::TT;
+    my $tt_cfg = Config::TT->new($tt2_params);
 
-    my $foo = Config::TT->new();
-    ...
+    my $cfg_stash = $tt_cfg->process($template);
+    my $cfg_stash = $tt_cfg->process( $template, $vars );
+    my ( $cfg_stash, $output ) = $tt_cfg->process($template);
+
+=head1 DESCRIPTION
+
 
 =head1 METHODS
 
@@ -58,7 +60,7 @@ sub new {
     );
 
     foreach my $unsupported (@unsupported) {
-        carp "Option '$unsupported' not supported\n"
+        croak "Option '$unsupported' not supported\n"
           if exists $params->{$unsupported};
     }
 
@@ -66,13 +68,10 @@ sub new {
     # DEFAULTS, see Template::Manual::Config
     #
     my $defaults = {
-        PRE_CHOMP   => 1,
-        POST_CHOMP  => 1,
-        TRIM        => 1,
         STRICT      => 1,
-        CACHE_SIZE  => 0,
         ABSOLUTE    => 1,
         RELATIVE    => 1,
+        CACHE_SIZE  => 0,
         INTERPLOATE => 0,
         EVAL_PERL   => 0,
         RAW_PERL    => 0,
@@ -80,8 +79,23 @@ sub new {
     };
 
     # override defaults by params
-    my $self = bless { params => { %$defaults, %$params } }, $class;
-    return $self->_build;
+    return bless { params => { %$defaults, %$params } }, $class;
+}
+
+sub _build {
+    my $self = shift;
+
+    # our entry level is Template::Context, use Template method chain
+    $self->{CONTEXT} = Template->new( $self->{params} )->service->context;
+
+    # HACKS
+    # shall copy of stash
+    $self->{ORIG_STASH} = { %{ $self->{CONTEXT}->stash } };
+
+    # component added to stash during process, bad, bad
+    $self->{ORIG_STASH}{component} = undef;
+
+    return $self;
 }
 
 =head2 process
@@ -91,39 +105,73 @@ sub new {
 sub process {
     my ( $self, $template, $vars ) = @_;
 
+    # create new Template ... objects for every process()
+    $self->_build;
+
     my $ctx = $self->{CONTEXT};
 
     #
     # processing template from Template::Context level and NOT
     # from Template::Service level to get the stash back
     #
-    my $output = $ctx->process($template, $vars);
+    my ( $output, $error );
+    try { $output = $ctx->process( $template, $vars ) }
+    catch { $error = $_ };
+    croak "$error" if $error;
 
-    # remove initial stash keys like _STRICT, _DEBUG, ...
-    $self->_purge_stash($ctx->stash);
+    # remove initial stash keys like _STRICT, _DEBUG, inc, ...
+    $self->_purge_stash;
 
     return wantarray ? ( $ctx->stash, $output ) : $ctx->stash;
 }
 
-sub _build {
+sub _purge_stash {
     my $self = shift;
 
-    # our entry level is Template::Context, use Template method chain
-    $self->{CONTEXT} = Template->new( $self->{params} )->service->context;
+    my @purge_keys = qw(
+      _PARENT
+      _STRICT
+      _DEBUG
+      inc
+      dec
+      global
+      component
+    );
+ 
+    my $stash      = $self->{CONTEXT}->stash;
+    my $orig_stash = $self->{ORIG_STASH};
 
-    return $self;
-}
+    foreach my $key (@purge_keys) {
 
-sub _purge_stash {
-    my ($self, $stash) = @_;
+        next unless exists $stash->{$key};
 
-    # vanilla stash for these params, use Template method chain
-    my $vanilla_stash =
-      Template->new( $self->{params} )->service->context->stash;
+        # _PARENT, ...
+        if ( not defined $stash->{$key} ) {
+            delete $stash->{$key};
+            next;
+        }
 
-    # TODO
-    # ... delete all vanilla keys from stash
+        # global, inc, dec,
+        # check ref addr by string interpolation
+        #
+        if (   ( ref $orig_stash->{$key} && ref $stash->{$key} )
+            && ( "$stash->{$key}" eq "$orig_stash->{$key}" ) )
+        {
 
+            delete $stash->{$key};
+            next;
+
+        }
+
+        # check for initial values
+	# component
+        if (   ( defined $orig_stash->{$key} && defined $stash->{$key} )
+            && ( $stash->{$key} eq $orig_stash->{$key} ) )
+        {
+            delete $stash->{$key};
+            next;
+        }
+    }
 }
 
 =head1 LIMITATIONS
