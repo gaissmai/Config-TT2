@@ -79,7 +79,15 @@ sub new {
     };
 
     # override defaults by params
-    return bless { params => { %$defaults, %$params } }, $class;
+    my $self = bless { params => { %$defaults, %$params } }, $class;
+
+    $self->_check_limitations( $params->{VARIABLES} )
+      if exists $params->{VARIABLES};
+
+    $self->_check_limitations( $params->{PRE_DEFINE} )
+      if exists $params->{PRE_DEFINE};
+
+    return $self;
 }
 
 sub _build {
@@ -105,6 +113,8 @@ sub _build {
 sub process {
     my ( $self, $template, $vars ) = @_;
 
+    $self->_check_limitations( $vars ) if defined $vars;
+
     # create new Template ... objects for every process()
     $self->_build;
 
@@ -125,6 +135,15 @@ sub process {
     return wantarray ? ( $ctx->stash, $output ) : $ctx->stash;
 }
 
+sub _check_limitations {
+    my ( $self, $vars ) = @_;
+    my $package = __PACKAGE__;
+
+    croak "'component' not supported as toplevel varname, "
+      . "see LIMITATIONS in $package\n"
+      if exists $vars->{'component'};
+}
+
 sub _purge_stash {
     my $self = shift;
 
@@ -137,7 +156,7 @@ sub _purge_stash {
       global
       component
     );
- 
+
     my $stash      = $self->{CONTEXT}->stash;
     my $orig_stash = $self->{ORIG_STASH};
 
@@ -145,30 +164,37 @@ sub _purge_stash {
 
         next unless exists $stash->{$key};
 
-        # _PARENT, ...
-        if ( not defined $stash->{$key} ) {
+        if (   $key eq '_STRICT'
+            || $key eq '_DEBUG'
+            || $key eq '_PARENT'
+            || $key eq 'component' )
+        {
             delete $stash->{$key};
             next;
         }
 
-        # global, inc, dec,
-        # check ref addr by string interpolation
+        if ( $key eq 'global' && ref( $stash->{global} ) eq 'HASH' ) {
+
+            # global untouched from user, delete it
+            delete $stash->{global} unless %{ $stash->{global} };
+            next;
+        }
+
+        # initial root VMethods inc, dec
         #
-        if (   ( ref $orig_stash->{$key} && ref $stash->{$key} )
-            && ( "$stash->{$key}" eq "$orig_stash->{$key}" ) )
-        {
+        if (
+               $key eq 'inc'
+            || $key eq 'dec'
+            && ref( $stash->{$key} )
+            && ref( $orig_stash->{$key} )
+            && ref( $orig_stash->{$key} ) eq 'CODE'
 
-            delete $stash->{$key};
-            next;
-
-        }
-
-        # check for initial values
-	# component
-        if (   ( defined $orig_stash->{$key} && defined $stash->{$key} )
-            && ( $stash->{$key} eq $orig_stash->{$key} ) )
+            # check ref_addr by string interpolation
+            && ( "$stash->{$key}" eq "$orig_stash->{$key}" )
+          )
         {
             delete $stash->{$key};
+
             next;
         }
     }
@@ -176,7 +202,7 @@ sub _purge_stash {
 
 =head1 LIMITATIONS
 
-Due to an design error in TT2 version 2.24 and before you can't use the toplevel variable 'component' in your config files. Maybe this will get fixed in later releases of TT2.
+Due to a missing private namespace in TT2  stashes you can't use the toplevel variable name 'component' in your config files. Maybe this will get fixed in later releases of TT2.
 
 =head1 AUTHOR
 
