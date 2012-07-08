@@ -164,10 +164,18 @@ sub _purge_stash {
 
         next unless exists $stash->{$key};
 
+	if (   $key eq 'component'
+	    && exists $stash->{component}
+	    && not defined $stash->{component} )
+	{
+	    delete $stash->{component};
+	    next;
+	}
+
+
         if (   $key eq '_STRICT'
             || $key eq '_DEBUG'
-            || $key eq '_PARENT'
-            || $key eq 'component' )
+            || $key eq '_PARENT' )
         {
             delete $stash->{$key};
             next;
@@ -202,7 +210,7 @@ sub _purge_stash {
 
 =head1 LIMITATIONS
 
-Due to a missing private namespace in TT2  stashes you can't use the toplevel variable name 'component' in your config files. Maybe this will get fixed in later releases of TT2.
+The Template-Toolkit uses the two predefined toplevel variables C<< template >> and C<< component >>. You can't redefine them without trouble! Variables prefixed with C<< _ >> or C<< . >> are handled as private and must also be avoided in config files.
 
 =head1 AUTHOR
 

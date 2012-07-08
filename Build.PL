@@ -9,7 +9,7 @@ my $builder = Module::Build->new(
     dist_version_from => 'lib/Config/TT.pm',
     build_requires    => { 'Test::More' => 0, },
     requires          => {
-        'Template'  => '2.24',
+        'Template'  => '2.21',
         'Carp'      => 0,
         'Try::Tiny' => 0,
     },
