@@ -16,7 +16,7 @@ $test =
         name   => 'default namespace',
         vars   => undef,
         cfg    => '[% user = constants.user %]',
-        expect => { user => 'homer' },
+        expect => { global => {}, user => 'homer' },
     };
 
 $tcfg = Config::TT->new(CONSTANTS => { user => 'homer' });
@@ -28,7 +28,7 @@ $test =
         name   => 'custom namespace',
         vars   => undef,
         cfg    => '[% user = my.user %]',
-        expect => { user => 'homer' },
+        expect => { global => {}, user => 'homer' },
     };
 
 $tcfg = Config::TT->new(

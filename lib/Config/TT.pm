@@ -104,6 +104,7 @@ sub process {
     $self->_build;
 
     my $ctx = $self->{CONTEXT};
+    my $stash = $ctx->stash;
 
     #
     # processing template from Template::Document level and NOT
@@ -111,9 +112,12 @@ sub process {
     #
     my ( $output, $error );
     try {
-        $ctx->stash->update($vars) if defined $vars;
-        my $template_doc = $ctx->template($template);
-        $output = $template_doc->process($ctx);
+        my $compiled = $ctx->template($template);
+
+        $stash->update( { template => $compiled } );
+        $stash->update( $vars ) if defined $vars;
+
+        $output = $compiled->process($ctx);
     }
     catch { $error = $_ };
     croak "$error" if $error;
