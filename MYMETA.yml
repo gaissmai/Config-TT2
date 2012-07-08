@@ -20,6 +20,7 @@ provides:
 requires:
   Carp: 0
   Template: 2.24
+  Try::Tiny: 0
 resources:
   license: http://dev.perl.org/licenses/
 version: 0.01
