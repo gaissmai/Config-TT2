@@ -81,12 +81,6 @@ sub new {
     # override defaults by params
     my $self = bless { params => { %$defaults, %$params } }, $class;
 
-    $self->_check_limitations( $params->{VARIABLES} )
-      if exists $params->{VARIABLES};
-
-    $self->_check_limitations( $params->{PRE_DEFINE} )
-      if exists $params->{PRE_DEFINE};
-
     return $self;
 }
 
@@ -95,13 +89,6 @@ sub _build {
 
     # our entry level is Template::Context, use Template method chain
     $self->{CONTEXT} = Template->new( $self->{params} )->service->context;
-
-    # HACKS
-    # shall copy of stash
-    $self->{ORIG_STASH} = { %{ $self->{CONTEXT}->stash } };
-
-    # component added to stash during process, bad, bad
-    $self->{ORIG_STASH}{component} = undef;
 
     return $self;
 }
@@ -113,19 +100,21 @@ sub _build {
 sub process {
     my ( $self, $template, $vars ) = @_;
 
-    $self->_check_limitations( $vars ) if defined $vars;
-
     # create new Template ... objects for every process()
     $self->_build;
 
     my $ctx = $self->{CONTEXT};
 
     #
-    # processing template from Template::Context level and NOT
+    # processing template from Template::Document level and NOT
     # from Template::Service level to get the stash back
     #
     my ( $output, $error );
-    try { $output = $ctx->process( $template, $vars ) }
+    try {
+        $ctx->stash->update($vars) if defined $vars;
+        my $template_doc = $ctx->template($template);
+        $output = $template_doc->process($ctx);
+    }
     catch { $error = $_ };
     croak "$error" if $error;
 
@@ -133,15 +122,6 @@ sub process {
     $self->_purge_stash;
 
     return wantarray ? ( $ctx->stash, $output ) : $ctx->stash;
-}
-
-sub _check_limitations {
-    my ( $self, $vars ) = @_;
-    my $package = __PACKAGE__;
-
-    croak "'component' not supported as toplevel varname, "
-      . "see LIMITATIONS in $package\n"
-      if exists $vars->{'component'};
 }
 
 sub _purge_stash {
@@ -153,64 +133,28 @@ sub _purge_stash {
       _DEBUG
       inc
       dec
-      global
-      component
     );
 
     my $stash      = $self->{CONTEXT}->stash;
-    my $orig_stash = $self->{ORIG_STASH};
 
     foreach my $key (@purge_keys) {
 
         next unless exists $stash->{$key};
 
-	if (   $key eq 'component'
-	    && exists $stash->{component}
-	    && not defined $stash->{component} )
-	{
-	    delete $stash->{component};
-	    next;
-	}
-
-
-        if (   $key eq '_STRICT'
-            || $key eq '_DEBUG'
-            || $key eq '_PARENT' )
-        {
+        if ( $key eq '_STRICT' || $key eq '_DEBUG' || $key eq '_PARENT' ) {
             delete $stash->{$key};
-            next;
-        }
-
-        if ( $key eq 'global' && ref( $stash->{global} ) eq 'HASH' ) {
-
-            # global untouched from user, delete it
-            delete $stash->{global} unless %{ $stash->{global} };
             next;
         }
 
         # initial root VMethods inc, dec
         #
-        if (
-               $key eq 'inc'
-            || $key eq 'dec'
-            && ref( $stash->{$key} )
-            && ref( $orig_stash->{$key} )
-            && ref( $orig_stash->{$key} ) eq 'CODE'
-
-            # check ref_addr by string interpolation
-            && ( "$stash->{$key}" eq "$orig_stash->{$key}" )
-          )
+        if ( ref $stash->{$key} eq 'CODE' )
         {
             delete $stash->{$key};
-
             next;
         }
     }
 }
-
-=head1 LIMITATIONS
-
-The Template-Toolkit uses the two predefined toplevel variables C<< template >> and C<< component >>. You can't redefine them without trouble! Variables prefixed with C<< _ >> or C<< . >> are handled as private and must also be avoided in config files.
 
 =head1 AUTHOR
 

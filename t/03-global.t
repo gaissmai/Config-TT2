@@ -11,7 +11,6 @@ my $tcfg;
 my $stash;
 
 $tcfg = Config::TT->new;
-isa_ok( $tcfg, 'Config::TT' );
 
 my $tests = [
     {
@@ -40,27 +39,6 @@ my $tests = [
         vars   => { global => [ 1, 2, 3, 4 ] },
         cfg    => '[% global.0 = 0 %]',
         expect => { global => [ 0, 2, 3, 4 ] },
-    },
-
-    {
-        name   => 'component not possible as toplevel var',
-        vars   => undef,
-        cfg    => '[% component = 1 %]',
-        expect => { },
-    },
-
-    {
-        name   => 'component possible as sublevel var',
-        vars   => undef,
-        cfg    => '[% foo.component = 1 %]',
-        expect => { foo => { component => 1 } },
-    },
-
-    {
-        name   => 'component predefined as sublevel var',
-        vars   => { foo => { component => 1 } },
-        cfg    => '',
-        expect => { foo => { component => 1 } },
     },
 
 ];

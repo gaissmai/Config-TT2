@@ -17,21 +17,21 @@ my $tests = [
         name   => 'simple scalar',
         vars   => undef,
         cfg    => '[% foo = 1 %]',
-        expect => { foo => 1 }
+        expect => { global => {}, foo => 1 }
     },
 
     {
         name   => 'simple scalar, predefined var',
         vars   => { bar => 'baz' },
         cfg    => '[% foo = bar %]',
-        expect => { foo => 'baz', bar => 'baz' }
+        expect => { global => {}, foo => 'baz', bar => 'baz' }
     },
 
     {
         name   => 'list and join',
         vars   => undef,
         cfg    => '[% foo = [1 2 3 4]; bar = foo.join(":") %]',
-        expect => { foo => [ 1, 2, 3, 4 ], bar => '1:2:3:4' }
+        expect => { global => {}, foo => [ 1, 2, 3, 4 ], bar => '1:2:3:4' }
     },
 
     {
@@ -39,7 +39,7 @@ my $tests = [
         vars => { hash2 => { one => 1, two => 2 } },
         cfg  => '[% foo = {}; foo.import(hash2) %]',
         expect =>
-          { foo => { one => 1, two => 2 }, hash2 => { one => 1, two => 2 } }
+          { global => {}, foo => { one => 1, two => 2 }, hash2 => { one => 1, two => 2 } }
     },
 
 ];
