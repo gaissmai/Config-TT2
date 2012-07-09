@@ -14,6 +14,7 @@ foreach my $opt (
     POST_PROCESS
     WRAPPER
     AUTO_RESET
+    DEFAULT
     OUTPUT
     OUTPUT_PATH
     ERROR
@@ -27,6 +28,16 @@ foreach my $opt (
     }
     catch { $error = $_ };
     like( $error, qr/$opt/i, "unsupported option $opt" );
+}
+
+{
+    my $error;
+    my $opt = { DEBUG => 'foo' };
+    try {
+        Config::TT->new( $opt );
+    }
+    catch { $error = $_ };
+    like( $error, qr/unknown debug flag/i, "unknown debug flag" );
 }
 
 done_testing();

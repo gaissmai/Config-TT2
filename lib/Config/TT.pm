@@ -1,7 +1,7 @@
-package Config::TT;
-
 use strict;
 use warnings;
+
+package Config::TT;
 
 use Template;
 use Try::Tiny;
@@ -9,7 +9,7 @@ use Carp qw(croak);
 
 =head1 NAME
 
-Config::TT - A module for reading Template-Toolkit-style configuration files.
+Config::TT - Reading configuration files with the Template-Toolkit parser.
 
 =head1 VERSION
 
@@ -22,18 +22,76 @@ our $VERSION = '0.01';
 =head1 SYNOPSIS
 
     use Config::TT;
-    my $tt_cfg = Config::TT->new($tt2_params);
 
-    my $cfg_stash = $tt_cfg->process($template);
-    my $cfg_stash = $tt_cfg->process( $template, $vars );
-    my ( $cfg_stash, $output ) = $tt_cfg->process($template);
+    my $ctt   = Config::TT->new;
+    my $stash = $ctt->process($file);
+
+=head1 ABSTRACT
+
+Define configuration files in the powerful, flexible and extensible Template-Toolkit syntax.
 
 =head1 DESCRIPTION
 
+C<< Config::TT >> extends the C<< Template-Toolkit >> aka C<< TT >> in a very special way:
+
+It returns the B<< VARIABLES STASH >> instead of the template text!
+
+The TT syntax is very powerful, flexible and extensible. One of the key features of TT is the ability to bind template variables to any kind of Perl data: scalars, lists, hash arrays, sub-routines and objects.
+
+e.g. this Template-Toolkit config 
+
+  [%                        # tt2 directive start-tag
+    scalar = 'string'       # strings in single or double quotes
+
+    array = [ 10 20 30 ]    # commas are optional
+    rev   = array.reverse   # powerful virtual methods
+    item  = array.0         # interpolate previous value
+
+    hash = { foo = 'bar'    # hashes to any depth
+             moo = array    # points to above arrayref
+	   }
+  %] 
+
+is returned as a perl datastructure:
+
+   'scalar' => 'string'
+   'array' => ARRAY(0x8ad2708)
+      0  10
+      1  20
+      2  30
+   'rev' => ARRAY(0x8afe740)
+      0  30
+      1  20
+      2  10
+   'item' => 10
+   'hash' => HASH(0x8afe160)
+      'foo' => 'bar'
+      'moo' => ARRAY(0x8ad2708)
+         -> REUSED_ADDRESS
+
+See the L<< Template::Manuals >> for the whole story.
 
 =head1 METHODS
 
-=head2 new
+=head2 new(%config)
+
+The C<< new() >> constructor method instantiates a new C<Config::TT> object. This method croaks on error.
+
+Configuration items may be passed as a list of items or a hash array:
+
+    my $ctt = Template->new(
+        ABSOLUTE => 0,
+        DEBUG    => 'all',
+    );
+
+The supported configuration options are the same as for C<< Template >>, please see the L<< Template::Manual::Config >> as a reference and the COMPATIBILITY section below.
+
+The preset default options which differ from the Template default options are:
+
+  STRICT     = 1   # undefined vars or values cause exceptions
+  ABSOLUTE   = 1   # files with absolute filenames allowed
+  RELATIVE   = 1   # files with relative filenames allowed
+  CACHE_SIZE = 0   # don't cache compiled config files
 
 =cut
 
@@ -53,6 +111,7 @@ sub new {
       POST_PROCESS
       WRAPPER
       AUTO_RESET
+      DEFAULT
       OUTPUT
       OUTPUT_PATH
       ERROR
@@ -72,14 +131,13 @@ sub new {
         ABSOLUTE    => 1,
         RELATIVE    => 1,
         CACHE_SIZE  => 0,
-        INTERPLOATE => 0,
-        EVAL_PERL   => 0,
-        RAW_PERL    => 0,
-        RECURSION   => 0,
     };
 
+
     # override defaults by params
-    my $self = bless { params => { %$defaults, %$params } }, $class;
+    my $self = bless { _PARAMS => { %$defaults, %$params } }, $class;
+
+    $self->_build;
 
     return $self;
 }
@@ -87,13 +145,33 @@ sub new {
 sub _build {
     my $self = shift;
 
-    # our entry level is Template::Context, use Template method chain
-    $self->{CONTEXT} = Template->new( $self->{params} )->service->context;
+    my $tt = Template->new( $self->{_PARAMS} ) || croak "$Template::ERROR\n";
+
+    # our entry level is Template::Context
+    $self->{_CONTEXT} = $tt->service->context;
 
     return $self;
 }
 
-=head2 process
+=head2 process($config, $variables)
+
+The C<< process() >> method is called to process a config file or string. The first parameter indicates the input as one of: a filename; a reference to a text string containing the config text; or a file handle reference, from which the config can be read.
+
+A reference to a hash array may be passed as the second parameter, containing definitions of input variables.
+
+    $stash = $ctt->process( '.myapp.cfg', { foo => $ENV{MYAPP_FOO}, } );
+
+The returned datastructure is a C<< Template::Stash >> object. You may access the key and values through normal perl dereferencing:
+
+   $item = $stash->{hash}{moo}[0];
+
+or via the C<< Template::Stash->get >> method like:
+
+   $item = $stash->get('hash.moo.0');
+
+For debugging purposes you can even request the template output from the process method:
+
+  ($stash, $output) = $ctt->process( $config );
 
 =cut
 
@@ -103,11 +181,11 @@ sub process {
     # create new Template ... objects for every process()
     $self->_build;
 
-    my $ctx = $self->{CONTEXT};
+    my $ctx = $self->{_CONTEXT};
     my $stash = $ctx->stash;
 
     #
-    # processing template from Template::Document level and NOT
+    # processing template from Template::Context level and NOT
     # from Template::Service level to get the stash back
     #
     my ( $output, $error );
@@ -115,9 +193,9 @@ sub process {
         my $compiled = $ctx->template($template);
 
         $stash->update( { template => $compiled } );
-        $stash->update( $vars ) if defined $vars;
+        $stash->update($vars) if defined $vars;
 
-        $output = $compiled->process($ctx);
+        $output = $compiled->process( $ctx );
     }
     catch { $error = $_ };
     croak "$error" if $error;
@@ -135,30 +213,46 @@ sub _purge_stash {
       _PARENT
       _STRICT
       _DEBUG
+      component
+      template
       inc
       dec
     );
 
-    my $stash      = $self->{CONTEXT}->stash;
+    my $stash = $self->{_CONTEXT}->stash;
 
     foreach my $key (@purge_keys) {
 
-        next unless exists $stash->{$key};
-
-        if ( $key eq '_STRICT' || $key eq '_DEBUG' || $key eq '_PARENT' ) {
-            delete $stash->{$key};
-            next;
-        }
-
+        #
         # initial root VMethods inc, dec
         #
-        if ( ref $stash->{$key} eq 'CODE' )
-        {
-            delete $stash->{$key};
+        if ( $key eq 'inc' || $key eq 'dec' ) {
+            delete $stash->{$key} if ref $stash->{$key} eq 'CODE';
             next;
         }
+
+        delete $stash->{$key};
     }
 }
+
+=head1 COMPATIBILITY
+
+The following Template options are not supported with Config::TT:
+
+      PRE_PROCESS
+      PROCESS
+      POST_PROCESS
+      WRAPPER
+      AUTO_RESET
+      DEFAULT
+      OUTPUT
+      OUTPUT_PATH
+      ERROR
+      ERRORS
+
+=head1 SEE ALSO
+
+L<< Template::Manual::Intro >>, L<< Template::Manual::Syntax >>, L<< Template::Manual::Config >>, L<< Template::Manual::Variables >>, L<< Template::Manual::VMethods >>
 
 =head1 AUTHOR
 

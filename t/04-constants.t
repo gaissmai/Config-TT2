@@ -16,11 +16,12 @@ $test =
         name   => 'default namespace',
         vars   => undef,
         cfg    => '[% user = constants.user %]',
-        expect => { global => {}, user => 'homer' },
+        expect => { user => 'homer' },
     };
 
 $tcfg = Config::TT->new(CONSTANTS => { user => 'homer' });
 $stash = $tcfg->process( \$test->{cfg}, $test->{vars} );
+delete $stash->{global};
 is_deeply( $stash, $test->{expect}, $test->{name} );
 
 $test = 
@@ -28,7 +29,7 @@ $test =
         name   => 'custom namespace',
         vars   => undef,
         cfg    => '[% user = my.user %]',
-        expect => { global => {}, user => 'homer' },
+        expect => { user => 'homer' },
     };
 
 $tcfg = Config::TT->new(
@@ -36,6 +37,7 @@ $tcfg = Config::TT->new(
     CONSTANTS_NAMESPACE => 'my'
 );
 $stash = $tcfg->process( \$test->{cfg}, $test->{vars} );
+delete $stash->{global};
 is_deeply( $stash, $test->{expect}, $test->{name} );
 
 
