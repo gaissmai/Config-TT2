@@ -7,11 +7,6 @@ BEGIN {
     use_ok('Config::TT') || print "Bail out!\n";
 }
 
-my $tcfg;
-my $stash;
-
-$tcfg = Config::TT->new();
-
 my $tests = [
     {
         name   => 'set template.title via META',
@@ -36,6 +31,7 @@ my $tests = [
 ];
 
 foreach my $test (@$tests) {
+    my $tcfg = Config::TT->new();
     my $stash = $tcfg->process( \$test->{cfg}, $test->{vars} );
     delete $stash->{global};
 

@@ -1,5 +1,5 @@
 ---
-abstract: 'Config files'
+abstract: 'Reading configuration files with the Template-Toolkit parser.'
 author:
   - 'Karl Gaissmaier <gaissmai@cpan.org>'
 build_requires:
@@ -12,12 +12,10 @@ meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
 name: Config-TT
-provides:
-  Config::TT:
-    file: lib/Config/TT.pm
-    version: 0.01
 requires:
-  Template: 2.24
+  Carp: 0
+  Template: 2.21
+  Try::Tiny: 0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.01
+version: 0.50

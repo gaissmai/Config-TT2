@@ -6,12 +6,6 @@ BEGIN {
     use_ok('Config::TT') || print "Bail out!\n";
 }
 
-my $tcfg;
-my $stash;
-
-$tcfg = Config::TT->new;
-isa_ok( $tcfg, 'Config::TT' );
-
 my $tests = [
     {
         name   => 'simple scalar',
@@ -45,6 +39,7 @@ my $tests = [
 ];
 
 foreach my $test (@$tests) {
+    my $tcfg = Config::TT->new;
     my $stash = $tcfg->process( \$test->{cfg}, $test->{vars} );
     delete $stash->{global};
 

@@ -7,6 +7,7 @@ my $builder = Module::Build->new(
     license           => 'perl',
     dist_author       => q{Karl Gaissmaier <gaissmai@cpan.org>},
     dist_version_from => 'lib/Config/TT.pm',
+    create_readme     => 1,
     build_requires    => { 'Test::More' => 0, },
     requires          => {
         'Template'  => '2.21',

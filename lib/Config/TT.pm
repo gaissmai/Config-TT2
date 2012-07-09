@@ -4,20 +4,140 @@ use warnings;
 package Config::TT;
 
 use Template;
+use Template::Config;
 use Try::Tiny;
 use Carp qw(croak);
+
+our $VERSION = '0.50';
 
 =head1 NAME
 
 Config::TT - Reading configuration files with the Template-Toolkit parser.
 
-=head1 VERSION
+=head1 ABSTRACT
 
-Version 0.01
+Define configuration files in the powerful, flexible and extensible Template-Toolkit syntax.
 
 =cut
 
-our $VERSION = '0.01';
+sub new {
+    my $class = shift;
+
+    # params as HASH or HASHREF?
+    my $params = defined( $_[0] ) && ref( $_[0] ) eq 'HASH' ? shift : {@_};
+
+    #
+    # Warn for unsupported Template and Template::Service params.
+    # Our entry level is Template::Context, see Template::Manual::Internals
+    #
+    my @unsupported = qw(
+      PRE_PROCESS
+      PROCESS
+      POST_PROCESS
+      WRAPPER
+      AUTO_RESET
+      DEFAULT
+      OUTPUT
+      OUTPUT_PATH
+      ERROR
+      ERRORS
+    );
+
+    foreach my $unsupported (@unsupported) {
+        croak "Option '$unsupported' not supported\n"
+          if exists $params->{$unsupported};
+    }
+
+    #
+    # DEFAULTS, see Template::Manual::Config
+    #
+    my $defaults = {
+        STRICT     => 1,
+        ABSOLUTE   => 1,
+        RELATIVE   => 1,
+        CACHE_SIZE => 0,
+    };
+
+    # override defaults by params
+    my $self = bless { _PARAMS => { %$defaults, %$params } }, $class;
+
+    my $tt = Template->new( $self->{_PARAMS} ) || croak "$Template::ERROR\n";
+
+    # our entry level into TT is Template::Context to get the stash back
+    $self->context($tt->service->context);
+
+    return $self;
+}
+
+sub context {
+    my ( $self, $ctx ) = @_;
+    $self->{_CONTEXT} = $ctx if defined $ctx;
+    return $self->{_CONTEXT};
+}
+
+sub process {
+    my ( $self, $template, $vars ) = @_;
+
+    my $ctx   = $self->context;
+    my $stash = $ctx->stash;
+
+    #
+    # processing template from Template::Context level and NOT
+    # from Template::Service level to get the stash back
+    #
+    my ( $output, $error );
+    try {
+        my $compiled = $ctx->template($template);
+
+        $stash->update( { template => $compiled } );
+        $stash->update($vars) if defined $vars;
+
+        $output = $compiled->process($ctx);
+    }
+    catch { $error = $_ };
+    croak "$error" if $error;
+
+    # remove initial stash keys like _STRICT, _DEBUG, inc, ...
+    $self->_purge_stash;
+
+    return wantarray ? ( $ctx->stash, $output ) : $ctx->stash;
+}
+
+sub _purge_stash {
+    my $self = shift;
+
+    my @purge_keys = qw(
+      _PARENT
+      _STRICT
+      _DEBUG
+      component
+      template
+      inc
+      dec
+    );
+
+    my $stash = $self->context->stash;
+
+    if ( $stash->{_DEBUG} ) {
+        my $pkg = __PACKAGE__;
+
+        warn "[${pkg}::_purge_stash] purging keys:\n";
+        warn join( ', ', @purge_keys ) . "\n";
+    }
+
+    foreach my $key (@purge_keys) {
+
+        #
+        # initial root VMethods inc, dec
+        #
+        if ( $key eq 'inc' || $key eq 'dec' ) {
+            delete $stash->{$key} if ref $stash->{$key} eq 'CODE';
+            next;
+        }
+
+        delete $stash->{$key};
+    }
+}
 
 =head1 SYNOPSIS
 
@@ -25,10 +145,6 @@ our $VERSION = '0.01';
 
     my $ctt   = Config::TT->new;
     my $stash = $ctt->process($file);
-
-=head1 ABSTRACT
-
-Define configuration files in the powerful, flexible and extensible Template-Toolkit syntax.
 
 =head1 DESCRIPTION
 
@@ -84,7 +200,7 @@ Configuration items may be passed as a list of items or a hash array:
         DEBUG    => 'all',
     );
 
-The supported configuration options are the same as for C<< Template >>, please see the L<< Template::Manual::Config >> as a reference and the COMPATIBILITY section below.
+The supported configuration options are the same as for C<< Template >>, please see the L<< Template::Manual::Config >> as a reference and the LIMITATIONS section below.
 
 The preset default options which differ from the Template default options are:
 
@@ -92,66 +208,6 @@ The preset default options which differ from the Template default options are:
   ABSOLUTE   = 1   # files with absolute filenames allowed
   RELATIVE   = 1   # files with relative filenames allowed
   CACHE_SIZE = 0   # don't cache compiled config files
-
-=cut
-
-sub new {
-    my $class = shift;
-
-    # params as HASH or HASHREF?
-    my $params = defined( $_[0] ) && ref( $_[0] ) eq 'HASH' ? shift : {@_};
-
-    #
-    # Warn for unsupported Template and Template::Service params.
-    # Our entry level is Template::Context, see Template::Manual::Internals
-    #
-    my @unsupported = qw(
-      PRE_PROCESS
-      PROCESS
-      POST_PROCESS
-      WRAPPER
-      AUTO_RESET
-      DEFAULT
-      OUTPUT
-      OUTPUT_PATH
-      ERROR
-      ERRORS
-    );
-
-    foreach my $unsupported (@unsupported) {
-        croak "Option '$unsupported' not supported\n"
-          if exists $params->{$unsupported};
-    }
-
-    #
-    # DEFAULTS, see Template::Manual::Config
-    #
-    my $defaults = {
-        STRICT      => 1,
-        ABSOLUTE    => 1,
-        RELATIVE    => 1,
-        CACHE_SIZE  => 0,
-    };
-
-
-    # override defaults by params
-    my $self = bless { _PARAMS => { %$defaults, %$params } }, $class;
-
-    $self->_build;
-
-    return $self;
-}
-
-sub _build {
-    my $self = shift;
-
-    my $tt = Template->new( $self->{_PARAMS} ) || croak "$Template::ERROR\n";
-
-    # our entry level is Template::Context
-    $self->{_CONTEXT} = $tt->service->context;
-
-    return $self;
-}
 
 =head2 process($config, $variables)
 
@@ -173,69 +229,18 @@ For debugging purposes you can even request the template output from the process
 
   ($stash, $output) = $ctt->process( $config );
 
-=cut
+=head1 LIMITATIONS
 
-sub process {
-    my ( $self, $template, $vars ) = @_;
+The Template-Toolkit processor uses the toplevel variables C<< template >> und C<< component >> for meta information during template file processing. You B<< MUST NOT >> define or redefine these toplevel variables at object creation, processing or within the config files.
 
-    # create new Template ... objects for every process()
-    $self->_build;
+The C<< process >> method purges these toplevel variables unconditionally after processing but before returning the stash.
 
-    my $ctx = $self->{_CONTEXT};
-    my $stash = $ctx->stash;
+See also the special meaning of the C<< global >> toplevel variable.
 
-    #
-    # processing template from Template::Context level and NOT
-    # from Template::Service level to get the stash back
-    #
-    my ( $output, $error );
-    try {
-        my $compiled = $ctx->template($template);
+Successive calls to C<< process >> with the same Config::TT instance B<< MUST >> be avoided. The Template CONTEXT and STASH have states belonging to the processed config text. Create new instances for different C<< process >> calls.
 
-        $stash->update( { template => $compiled } );
-        $stash->update($vars) if defined $vars;
-
-        $output = $compiled->process( $ctx );
-    }
-    catch { $error = $_ };
-    croak "$error" if $error;
-
-    # remove initial stash keys like _STRICT, _DEBUG, inc, ...
-    $self->_purge_stash;
-
-    return wantarray ? ( $ctx->stash, $output ) : $ctx->stash;
-}
-
-sub _purge_stash {
-    my $self = shift;
-
-    my @purge_keys = qw(
-      _PARENT
-      _STRICT
-      _DEBUG
-      component
-      template
-      inc
-      dec
-    );
-
-    my $stash = $self->{_CONTEXT}->stash;
-
-    foreach my $key (@purge_keys) {
-
-        #
-        # initial root VMethods inc, dec
-        #
-        if ( $key eq 'inc' || $key eq 'dec' ) {
-            delete $stash->{$key} if ref $stash->{$key} eq 'CODE';
-            next;
-        }
-
-        delete $stash->{$key};
-    }
-}
-
-=head1 COMPATIBILITY
+   $stash1 = Config::TT->new->process($file1);
+   $stash2 = Config::TT->new->process($file2);
 
 The following Template options are not supported with Config::TT:
 
@@ -249,6 +254,20 @@ The following Template options are not supported with Config::TT:
       OUTPUT_PATH
       ERROR
       ERRORS
+
+=head1 EXTENSIBILITY
+
+
+=head2 context()
+
+This is a setter/getter method to access/change the underlying Template::Context object of the Config::TT instance. Through the context you can also access the stash and do weird things.
+
+   $ctt = Config::TT->new;
+   $stash = $ctt->context->stash;
+   
+   $stash->define_vmethod($type, $name, $code);
+
+See the manuals L<< Template::Stash >>, L<< Template::Context >> and L<< Template::Manual::Internals >>.
 
 =head1 SEE ALSO
 
@@ -293,10 +312,6 @@ L<http://search.cpan.org/dist/Config-TT/>
 
 =back
 
-
-=head1 ACKNOWLEDGEMENTS
-
-
 =head1 LICENSE AND COPYRIGHT
 
 Copyright 2012 Karl Gaissmaier.
@@ -306,7 +321,6 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-
 
 =cut
 
