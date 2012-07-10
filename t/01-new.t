@@ -4,8 +4,6 @@ use Test::More;
 use Try::Tiny;
 
 use_ok('Config::TT2');
-my $t = Config::TT2->new();
-isa_ok( $t, 'Config::TT2' );
 
 foreach my $opt (
     qw/
@@ -40,5 +38,5 @@ foreach my $opt (
     like( $error, qr/unknown debug flag/i, "unknown debug flag" );
 }
 
-done_testing();
+done_testing(12);
 

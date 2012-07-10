@@ -49,4 +49,4 @@
 ^MANIFEST\.SKIP
 
 # Avoid archives of this distribution
-\bConfig-TT-[\d\.\_]+
+\bConfig-TT2-[\d\.\_]+

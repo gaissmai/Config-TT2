@@ -47,5 +47,5 @@ foreach my $test (@$tests) {
 } 
 
 
-done_testing();
+done_testing(5);
 

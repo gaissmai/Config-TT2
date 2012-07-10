@@ -88,11 +88,11 @@ sub process {
     try {
         my $comp_template = $ctx->template($template);
 
-	# play Template::Service, preset template slot
-	$vars->{ template } ||= $comp_template;
+        # play Template::Service, preset template slot
+        $vars->{template} = $comp_template;
 
-	# ok, process at Template::Context level
-        $output = $ctx->process($comp_template, $vars);
+        # ok, process at Template::Context level
+        $output = $ctx->process( $comp_template, $vars );
     }
     catch { $error = $_ };
     croak "$error" if $error;
@@ -107,13 +107,13 @@ sub _purge_stash {
     my $self = shift;
 
     my @purge_keys = qw(
+      template
+      component
+      inc
+      dec
       _PARENT
       _STRICT
       _DEBUG
-      component
-      template
-      inc
-      dec
     );
 
     my $stash = $self->context->stash;
@@ -255,17 +255,17 @@ The following Template options are not supported with Config::TT2:
       ERROR
       ERRORS
 
-=head1 EXTENSIBILITY
+=head1 EXTEND VIRTUAL METHODS
 
+With the method C<< context >> you can access/change the underlying Template::Context object.
 
 =head2 context()
 
-This is a setter/getter method to access/change the underlying Template::Context object of the Config::TT2 instance. Through the context you can also access the stash and do weird things.
+With the context you can also access the stash and define new virtual methods BEFORE processing.
 
-    $ctt   = Config::TT2->new;
-    $stash = $ctt->context->stash;
-
-    $stash->define_vmethod( $type, $name, $code );
+    $ctt = Config::TT2->new;
+    $ctt->context->stash->define_vmethod( $type, $name, $code_ref );
+    $cfg_stash = $ctt->process($cfg_file);
 
 See the manuals L<< Template::Stash >>, L<< Template::Context >> and L<< Template::Manual::Internals >>.
 
