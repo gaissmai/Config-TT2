@@ -14,7 +14,7 @@ my $builder = Module::Build->new(
         'Carp'      => 0,
         'Try::Tiny' => 0,
     },
-    add_to_cleanup     => ['Config-TT2-*', 'Makefile*', 'META*', 'MYMETA*'],
+    add_to_cleanup     => ['Config-TT2-*'],
     create_makefile_pl => 'traditional',
 );
 
