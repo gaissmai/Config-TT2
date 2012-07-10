@@ -3,9 +3,9 @@
 use Test::More;
 use Try::Tiny;
 
-use_ok('Config::TT');
-my $t = Config::TT->new();
-isa_ok( $t, 'Config::TT' );
+use_ok('Config::TT2');
+my $t = Config::TT2->new();
+isa_ok( $t, 'Config::TT2' );
 
 foreach my $opt (
     qw/
@@ -24,7 +24,7 @@ foreach my $opt (
 {
     my $error;
     try {
-        Config::TT->new( $opt => 0 );
+        Config::TT2->new( $opt => 0 );
     }
     catch { $error = $_ };
     like( $error, qr/$opt/i, "unsupported option $opt" );
@@ -34,7 +34,7 @@ foreach my $opt (
     my $error;
     my $opt = { DEBUG => 'foo' };
     try {
-        Config::TT->new( $opt );
+        Config::TT2->new( $opt );
     }
     catch { $error = $_ };
     like( $error, qr/unknown debug flag/i, "unknown debug flag" );

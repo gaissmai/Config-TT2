@@ -4,7 +4,7 @@ use Test::More;
 use Try::Tiny;
 
 BEGIN {
-    use_ok('Config::TT') || print "Bail out!\n";
+    use_ok('Config::TT2') || print "Bail out!\n";
 }
 
 my $tcfg;
@@ -19,7 +19,7 @@ $test =
         expect => { user => 'homer' },
     };
 
-$tcfg = Config::TT->new(CONSTANTS => { user => 'homer' });
+$tcfg = Config::TT2->new(CONSTANTS => { user => 'homer' });
 $stash = $tcfg->process( \$test->{cfg}, $test->{vars} );
 delete $stash->{global};
 is_deeply( $stash, $test->{expect}, $test->{name} );
@@ -32,7 +32,7 @@ $test =
         expect => { user => 'homer' },
     };
 
-$tcfg = Config::TT->new(
+$tcfg = Config::TT2->new(
     CONSTANTS           => { user => 'homer' },
     CONSTANTS_NAMESPACE => 'my'
 );

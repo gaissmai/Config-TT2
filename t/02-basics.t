@@ -3,7 +3,7 @@
 use Test::More;
 
 BEGIN {
-    use_ok('Config::TT') || print "Bail out!\n";
+    use_ok('Config::TT2') || print "Bail out!\n";
 }
 
 my $tests = [
@@ -39,7 +39,7 @@ my $tests = [
 ];
 
 foreach my $test (@$tests) {
-    my $tcfg = Config::TT->new;
+    my $tcfg = Config::TT2->new;
     my $stash = $tcfg->process( \$test->{cfg}, $test->{vars} );
     delete $stash->{global};
 

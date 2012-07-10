@@ -1,10 +1,9 @@
 use strict;
 use warnings;
 
-package Config::TT;
+package Config::TT2;
 
 use Template;
-use Template::Config;
 use Try::Tiny;
 use Carp qw(croak);
 
@@ -12,7 +11,7 @@ our $VERSION = '0.50';
 
 =head1 NAME
 
-Config::TT - Reading configuration files with the Template-Toolkit parser.
+Config::TT2 - Reading configuration files with the Template-Toolkit parser.
 
 =head1 ABSTRACT
 
@@ -63,8 +62,8 @@ sub new {
 
     my $tt = Template->new( $self->{_PARAMS} ) || croak "$Template::ERROR\n";
 
-    # our entry level into TT is Template::Context to get the stash back
-    $self->context($tt->service->context);
+    # our entry level into TT2 is Template::Context to get the stash back
+    $self->context( $tt->service->context );
 
     return $self;
 }
@@ -87,12 +86,13 @@ sub process {
     #
     my ( $output, $error );
     try {
-        my $compiled = $ctx->template($template);
+        my $comp_template = $ctx->template($template);
 
-        $stash->update( { template => $compiled } );
-        $stash->update($vars) if defined $vars;
+	# play Template::Service, preset template slot
+	$vars->{ template } ||= $comp_template;
 
-        $output = $compiled->process($ctx);
+	# ok, process at Template::Context level
+        $output = $ctx->process($comp_template, $vars);
     }
     catch { $error = $_ };
     croak "$error" if $error;
@@ -141,18 +141,18 @@ sub _purge_stash {
 
 =head1 SYNOPSIS
 
-    use Config::TT;
+    use Config::TT2;
 
-    my $ctt   = Config::TT->new;
+    my $ctt   = Config::TT2->new;
     my $stash = $ctt->process($file);
 
 =head1 DESCRIPTION
 
-C<< Config::TT >> extends the C<< Template-Toolkit >> aka C<< TT >> in a very special way:
+C<< Config::TT2 >> extends the C<< Template-Toolkit >> aka C<< TT2 >> in a very special way:
 
 It returns the B<< VARIABLES STASH >> instead of the template text!
 
-The TT syntax is very powerful, flexible and extensible. One of the key features of TT is the ability to bind template variables to any kind of Perl data: scalars, lists, hash arrays, sub-routines and objects.
+The TT2 syntax is very powerful, flexible and extensible. One of the key features of TT2 is the ability to bind template variables to any kind of Perl data: scalars, lists, hash arrays, sub-routines and objects.
 
 e.g. this Template-Toolkit config 
 
@@ -191,7 +191,7 @@ See the L<< Template::Manuals >> for the whole story.
 
 =head2 new(%config)
 
-The C<< new() >> constructor method instantiates a new C<Config::TT> object. This method croaks on error.
+The C<< new() >> constructor method instantiates a new C<Config::TT2> object. This method croaks on error.
 
 Configuration items may be passed as a list of items or a hash array:
 
@@ -237,12 +237,12 @@ The C<< process >> method purges these toplevel variables unconditionally after 
 
 See also the special meaning of the C<< global >> toplevel variable.
 
-Successive calls to C<< process >> with the same Config::TT instance B<< MUST >> be avoided. The Template CONTEXT and STASH have states belonging to the processed config text. Create new instances for different C<< process >> calls.
+Successive calls to C<< process >> with the same Config::TT2 instance B<< MUST >> be avoided. The Template CONTEXT and STASH have states belonging to the processed config text. Create new instances for different C<< process >> calls.
 
-   $stash1 = Config::TT->new->process($file1);
-   $stash2 = Config::TT->new->process($file2);
+   $stash1 = Config::TT2->new->process($file1);
+   $stash2 = Config::TT2->new->process($file2);
 
-The following Template options are not supported with Config::TT:
+The following Template options are not supported with Config::TT2:
 
       PRE_PROCESS
       PROCESS
@@ -260,12 +260,12 @@ The following Template options are not supported with Config::TT:
 
 =head2 context()
 
-This is a setter/getter method to access/change the underlying Template::Context object of the Config::TT instance. Through the context you can also access the stash and do weird things.
+This is a setter/getter method to access/change the underlying Template::Context object of the Config::TT2 instance. Through the context you can also access the stash and do weird things.
 
-   $ctt = Config::TT->new;
-   $stash = $ctt->context->stash;
-   
-   $stash->define_vmethod($type, $name, $code);
+    $ctt   = Config::TT2->new;
+    $stash = $ctt->context->stash;
+
+    $stash->define_vmethod( $type, $name, $code );
 
 See the manuals L<< Template::Stash >>, L<< Template::Context >> and L<< Template::Manual::Internals >>.
 
@@ -280,14 +280,14 @@ Karl Gaissmaier, C<< <gaissmai at cpan.org> >>
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-config-tt at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Config-TT>.  I will be notified, and then you'll
+the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Config-TT2>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
 =head1 SUPPORT
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc Config::TT
+    perldoc Config::TT2
 
 
 You can also look for information at:
@@ -296,19 +296,19 @@ You can also look for information at:
 
 =item * RT: CPAN's request tracker (report bugs here)
 
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Config-TT>
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Config-TT2>
 
 =item * AnnoCPAN: Annotated CPAN documentation
 
-L<http://annocpan.org/dist/Config-TT>
+L<http://annocpan.org/dist/Config-TT2>
 
 =item * CPAN Ratings
 
-L<http://cpanratings.perl.org/d/Config-TT>
+L<http://cpanratings.perl.org/d/Config-TT2>
 
 =item * Search CPAN
 
-L<http://search.cpan.org/dist/Config-TT/>
+L<http://search.cpan.org/dist/Config-TT2/>
 
 =back
 
@@ -324,6 +324,6 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1;    # End of Config::TT
+1;    # End of Config::TT2
 
 # vim: sw=4
