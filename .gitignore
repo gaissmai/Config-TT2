@@ -1,6 +1,8 @@
 blib*
 Makefile*
 MANIFEST
+MYMETA*
+META*
 Build
 _build*
 pm_to_blib*

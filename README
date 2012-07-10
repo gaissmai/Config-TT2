@@ -1,5 +1,5 @@
 NAME
-    Config::TT - Reading configuration files with the Template-Toolkit
+    Config::TT2 - Reading configuration files with the Template-Toolkit
     parser.
 
 ABSTRACT
@@ -7,19 +7,19 @@ ABSTRACT
     Template-Toolkit syntax.
 
 SYNOPSIS
-        use Config::TT;
+        use Config::TT2;
 
-        my $ctt   = Config::TT->new;
+        my $ctt   = Config::TT2->new;
         my $stash = $ctt->process($file);
 
 DESCRIPTION
-    "Config::TT" extends the "Template-Toolkit" aka "TT" in a very special
+    "Config::TT2" extends the "Template-Toolkit" aka "TT2" in a very special
     way:
 
     It returns the VARIABLES STASH instead of the template text!
 
-    The TT syntax is very powerful, flexible and extensible. One of the key
-    features of TT is the ability to bind template variables to any kind of
+    The TT2 syntax is very powerful, flexible and extensible. One of the key
+    features of TT2 is the ability to bind template variables to any kind of
     Perl data: scalars, lists, hash arrays, sub-routines and objects.
 
     e.g. this Template-Toolkit config
@@ -57,7 +57,7 @@ DESCRIPTION
 
 METHODS
   new(%config)
-    The "new()" constructor method instantiates a new "Config::TT" object.
+    The "new()" constructor method instantiates a new "Config::TT2" object.
     This method croaks on error.
 
     Configuration items may be passed as a list of items or a hash array:
@@ -115,15 +115,15 @@ LIMITATIONS
 
     See also the special meaning of the "global" toplevel variable.
 
-    Successive calls to "process" with the same Config::TT instance MUST be
+    Successive calls to "process" with the same Config::TT2 instance MUST be
     avoided. The Template CONTEXT and STASH have states belonging to the
     processed config text. Create new instances for different "process"
     calls.
 
-       $stash1 = Config::TT->new->process($file1);
-       $stash2 = Config::TT->new->process($file2);
+       $stash1 = Config::TT2->new->process($file1);
+       $stash2 = Config::TT2->new->process($file2);
 
-    The following Template options are not supported with Config::TT:
+    The following Template options are not supported with Config::TT2:
 
           PRE_PROCESS
           PROCESS
@@ -136,16 +136,17 @@ LIMITATIONS
           ERROR
           ERRORS
 
-EXTENSIBILITY
-  context()
-    This is a setter/getter method to access/change the underlying
-    Template::Context object of the Config::TT instance. Through the context
-    you can also access the stash and do weird things.
+EXTEND VIRTUAL METHODS
+    With the method "context" you can access/change the underlying
+    Template::Context object.
 
-       $ctt = Config::TT->new;
-       $stash = $ctt->context->stash;
-   
-       $stash->define_vmethod($type, $name, $code);
+  context()
+    With the context you can also access the stash and define new virtual
+    methods BEFORE processing.
+
+        $ctt = Config::TT2->new;
+        $ctt->context->stash->define_vmethod( $type, $name, $code_ref );
+        $cfg_stash = $ctt->process($cfg_file);
 
     See the manuals Template::Stash, Template::Context and
     Template::Manual::Internals.
@@ -161,32 +162,32 @@ AUTHOR
 BUGS
     Please report any bugs or feature requests to "bug-config-tt at
     rt.cpan.org", or through the web interface at
-    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Config-TT>. I will be
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Config-TT2>. I will be
     notified, and then you'll automatically be notified of progress on your
     bug as I make changes.
 
 SUPPORT
     You can find documentation for this module with the perldoc command.
 
-        perldoc Config::TT
+        perldoc Config::TT2
 
     You can also look for information at:
 
     *   RT: CPAN's request tracker (report bugs here)
 
-        <http://rt.cpan.org/NoAuth/Bugs.html?Dist=Config-TT>
+        <http://rt.cpan.org/NoAuth/Bugs.html?Dist=Config-TT2>
 
     *   AnnoCPAN: Annotated CPAN documentation
 
-        <http://annocpan.org/dist/Config-TT>
+        <http://annocpan.org/dist/Config-TT2>
 
     *   CPAN Ratings
 
-        <http://cpanratings.perl.org/d/Config-TT>
+        <http://cpanratings.perl.org/d/Config-TT2>
 
     *   Search CPAN
 
-        <http://search.cpan.org/dist/Config-TT/>
+        <http://search.cpan.org/dist/Config-TT2/>
 
 LICENSE AND COPYRIGHT
     Copyright 2012 Karl Gaissmaier.
