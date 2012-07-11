@@ -7,7 +7,7 @@ use Template;
 use Try::Tiny;
 use Carp qw(croak);
 
-our $VERSION = '0.50';
+our $VERSION = '0.51';
 
 =head1 NAME
 
@@ -143,8 +143,8 @@ sub _purge_stash {
 
     use Config::TT2;
 
-    my $ctt   = Config::TT2->new;
-    my $stash = $ctt->process($file);
+    my $ctt2      = Config::TT2->new;
+    my $cfg_stash = $ctt2->process($file);
 
 =head1 DESCRIPTION
 
@@ -154,7 +154,9 @@ It returns the B<< VARIABLES STASH >> instead of the template text!
 
 The TT2 syntax is very powerful, flexible and extensible. One of the key features of TT2 is the ability to bind template variables to any kind of Perl data: scalars, lists, hash arrays, sub-routines and objects.
 
-e.g. this Template-Toolkit config 
+See L<< Template::Manual::Variables >> for a reference.
+
+E.g. this Template-Toolkit config 
 
   [%                        # tt2 directive start-tag
     scalar = 'string'       # strings in single or double quotes
@@ -166,7 +168,7 @@ e.g. this Template-Toolkit config
     hash = { foo = 'bar'    # hashes to any depth
              moo = array    # points to above arrayref
 	   }
-  %] 
+  %]                        # tt2 directive end-tag
 
 is returned as a perl datastructure:
 
@@ -185,8 +187,6 @@ is returned as a perl datastructure:
       'moo' => ARRAY(0x8ad2708)
          -> REUSED_ADDRESS
 
-See the L<< Template::Manuals >> for the whole story.
-
 =head1 METHODS
 
 =head2 new(%config)
@@ -195,7 +195,7 @@ The C<< new() >> constructor method instantiates a new C<Config::TT2> object. Th
 
 Configuration items may be passed as a list of items or a hash array:
 
-    my $ctt = Template->new(
+    my $ctt2 = Template->new(
         ABSOLUTE => 0,
         DEBUG    => 'all',
     );
@@ -215,7 +215,7 @@ The C<< process() >> method is called to process a config file or string. The fi
 
 A reference to a hash array may be passed as the second parameter, containing definitions of input variables.
 
-    $stash = $ctt->process( '.myapp.cfg', { foo => $ENV{MYAPP_FOO}, } );
+    $stash = $ctt2->process( '.app.cfg', {foo => $ENV{APP_FOO}} );
 
 The returned datastructure is a C<< Template::Stash >> object. You may access the key and values through normal perl dereferencing:
 
@@ -227,17 +227,21 @@ or via the C<< Template::Stash->get >> method like:
 
 For debugging purposes you can even request the template output from the process method:
 
-  ($stash, $output) = $ctt->process( $config );
+  ($stash, $output) = $ctt2->process( $config );
+
+The method croaks on error.
 
 =head1 LIMITATIONS
 
 The Template-Toolkit processor uses the toplevel variables C<< template >> und C<< component >> for meta information during template file processing. You B<< MUST NOT >> define or redefine these toplevel variables at object creation, processing or within the config files.
 
+See the section L<< Template::Manual::Variables/Special Variables >>.
+
 The C<< process >> method purges these toplevel variables unconditionally after processing but before returning the stash.
 
 See also the special meaning of the C<< global >> toplevel variable.
 
-Successive calls to C<< process >> with the same Config::TT2 instance B<< MUST >> be avoided. The Template CONTEXT and STASH have states belonging to the processed config text. Create new instances for different C<< process >> calls.
+Successive calls to C<< process >> with the same Config::TT2 instance B<< MUST >> be avoided. The Template CONTEXT and STASH have states belonging to the processed config text. Create new instances for successive C<< process >> calls.
 
    $stash1 = Config::TT2->new->process($file1);
    $stash2 = Config::TT2->new->process($file2);
@@ -255,17 +259,19 @@ The following Template options are not supported with Config::TT2:
       ERROR
       ERRORS
 
-=head1 EXTEND VIRTUAL METHODS
+=head1 EXTENSIONS AND VIRTUAL METHODS
 
-With the method C<< context >> you can access/change the underlying Template::Context object.
+With the C<< context >> method you can get/set the underlying Template::Context object.
 
 =head2 context()
 
+Getter/setter method for the underlying Template::Context object.
+
 With the context you can also access the stash and define new virtual methods BEFORE processing.
 
-    $ctt = Config::TT2->new;
-    $ctt->context->stash->define_vmethod( $type, $name, $code_ref );
-    $cfg_stash = $ctt->process($cfg_file);
+    $ctt2 = Config::TT2->new;
+    $ctt2->context->stash->define_vmethod( $type, $name, $code_ref );
+    $cfg_stash = $ctt2->process($cfg_file);
 
 See the manuals L<< Template::Stash >>, L<< Template::Context >> and L<< Template::Manual::Internals >>.
 

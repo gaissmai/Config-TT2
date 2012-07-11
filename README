@@ -9,8 +9,8 @@ ABSTRACT
 SYNOPSIS
         use Config::TT2;
 
-        my $ctt   = Config::TT2->new;
-        my $stash = $ctt->process($file);
+        my $ctt2      = Config::TT2->new;
+        my $cfg_stash = $ctt2->process($file);
 
 DESCRIPTION
     "Config::TT2" extends the "Template-Toolkit" aka "TT2" in a very special
@@ -22,7 +22,9 @@ DESCRIPTION
     features of TT2 is the ability to bind template variables to any kind of
     Perl data: scalars, lists, hash arrays, sub-routines and objects.
 
-    e.g. this Template-Toolkit config
+    See Template::Manual::Variables for a reference.
+
+    E.g. this Template-Toolkit config
 
       [%                        # tt2 directive start-tag
         scalar = 'string'       # strings in single or double quotes
@@ -34,7 +36,7 @@ DESCRIPTION
         hash = { foo = 'bar'    # hashes to any depth
                  moo = array    # points to above arrayref
                }
-      %]
+      %]                        # tt2 directive end-tag
 
     is returned as a perl datastructure:
 
@@ -53,8 +55,6 @@ DESCRIPTION
           'moo' => ARRAY(0x8ad2708)
              -> REUSED_ADDRESS
 
-    See the Template::Manuals for the whole story.
-
 METHODS
   new(%config)
     The "new()" constructor method instantiates a new "Config::TT2" object.
@@ -62,7 +62,7 @@ METHODS
 
     Configuration items may be passed as a list of items or a hash array:
 
-        my $ctt = Template->new(
+        my $ctt2 = Template->new(
             ABSOLUTE => 0,
             DEBUG    => 'all',
         );
@@ -88,7 +88,7 @@ METHODS
     A reference to a hash array may be passed as the second parameter,
     containing definitions of input variables.
 
-        $stash = $ctt->process( '.myapp.cfg', { foo => $ENV{MYAPP_FOO}, } );
+        $stash = $ctt2->process( '.app.cfg', {foo => $ENV{APP_FOO}} );
 
     The returned datastructure is a "Template::Stash" object. You may access
     the key and values through normal perl dereferencing:
@@ -102,13 +102,17 @@ METHODS
     For debugging purposes you can even request the template output from the
     process method:
 
-      ($stash, $output) = $ctt->process( $config );
+      ($stash, $output) = $ctt2->process( $config );
+
+    The method croaks on error.
 
 LIMITATIONS
     The Template-Toolkit processor uses the toplevel variables "template"
     und "component" for meta information during template file processing.
     You MUST NOT define or redefine these toplevel variables at object
     creation, processing or within the config files.
+
+    See the section "Special Variables" in Template::Manual::Variables.
 
     The "process" method purges these toplevel variables unconditionally
     after processing but before returning the stash.
@@ -117,7 +121,7 @@ LIMITATIONS
 
     Successive calls to "process" with the same Config::TT2 instance MUST be
     avoided. The Template CONTEXT and STASH have states belonging to the
-    processed config text. Create new instances for different "process"
+    processed config text. Create new instances for successive "process"
     calls.
 
        $stash1 = Config::TT2->new->process($file1);
@@ -136,17 +140,19 @@ LIMITATIONS
           ERROR
           ERRORS
 
-EXTEND VIRTUAL METHODS
-    With the method "context" you can access/change the underlying
+EXTENSIONS AND VIRTUAL METHODS
+    With the "context" method you can get/set the underlying
     Template::Context object.
 
   context()
+    Getter/setter method for the underlying Template::Context object.
+
     With the context you can also access the stash and define new virtual
     methods BEFORE processing.
 
-        $ctt = Config::TT2->new;
-        $ctt->context->stash->define_vmethod( $type, $name, $code_ref );
-        $cfg_stash = $ctt->process($cfg_file);
+        $ctt2 = Config::TT2->new;
+        $ctt2->context->stash->define_vmethod( $type, $name, $code_ref );
+        $cfg_stash = $ctt2->process($cfg_file);
 
     See the manuals Template::Stash, Template::Context and
     Template::Manual::Internals.
