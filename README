@@ -62,7 +62,7 @@ METHODS
 
     Configuration items may be passed as a list of items or a hash array:
 
-        my $ctt2 = Template->new(
+        my $ctt2 = Config::TT2->new(
             ABSOLUTE => 0,
             DEBUG    => 'all',
         );
