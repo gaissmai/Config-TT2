@@ -7,7 +7,7 @@ use Template;
 use Try::Tiny;
 use Carp qw(croak);
 
-our $VERSION = '0.51';
+our $VERSION = '0.52';
 
 =head1 NAME
 
@@ -195,7 +195,7 @@ The C<< new() >> constructor method instantiates a new C<Config::TT2> object. Th
 
 Configuration items may be passed as a list of items or a hash array:
 
-    my $ctt2 = Template->new(
+    my $ctt2 = Config::TT2->new(
         ABSOLUTE => 0,
         DEBUG    => 'all',
     );
