@@ -7,7 +7,7 @@ use Template;
 use Try::Tiny;
 use Carp qw(croak);
 
-our $VERSION = '0.52';
+our $VERSION = '0.53';
 
 =head1 NAME
 
@@ -276,6 +276,8 @@ With the context you can also access the stash and define new virtual methods BE
 See the manuals L<< Template::Stash >>, L<< Template::Context >> and L<< Template::Manual::Internals >>.
 
 =head1 SEE ALSO
+
+L<< Config::Any::TT2 >>, the corresponding L<< Config::Any >> plugin.
 
 L<< Template::Manual::Intro >>, L<< Template::Manual::Syntax >>, L<< Template::Manual::Config >>, L<< Template::Manual::Variables >>, L<< Template::Manual::VMethods >>
 

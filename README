@@ -158,6 +158,8 @@ EXTENSIONS AND VIRTUAL METHODS
     Template::Manual::Internals.
 
 SEE ALSO
+    Config::Any::TT2, the corresponding Config::Any plugin.
+
     Template::Manual::Intro, Template::Manual::Syntax,
     Template::Manual::Config, Template::Manual::Variables,
     Template::Manual::VMethods

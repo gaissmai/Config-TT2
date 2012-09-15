@@ -15,11 +15,11 @@ name: Config-TT2
 provides:
   Config::TT2:
     file: lib/Config/TT2.pm
-    version: 0.52
+    version: 0.53
 requires:
   Carp: 0
   Template: 2.21
   Try::Tiny: 0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.52
+version: 0.53
